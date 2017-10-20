@@ -14,9 +14,10 @@ class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        self.send_header("Content-type", "text/html")
+        self.send_header("Content-type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(bytes("hello!", "utf8"))
+        self.wfile.write(bytes('{"verse":"hello"}', "utf8"))
 
 if __name__ == "__main__":
     main()
