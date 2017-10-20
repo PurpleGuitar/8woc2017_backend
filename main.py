@@ -34,28 +34,21 @@ class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         # Check path against expected pattern
         match = PATH_REGEX.match(self.path)
         if match:
-
+            # Pattern looks good
             book = match.group(1)
             chapter = match.group(2)
             verse_num = match.group(3)
             data["book"] = book
             data["chapter"] = chapter
             data["verse_num"] = verse_num
-
-            try: 
-                data["verse"] = lookup_verse(book, chapter, verse_num)
-                if data["verse"] != "":
-                    self.send_response(200)
-                else:
-                    self.send_response(404)
-                    data["message"] = "Couldn't find verse for '"+self.path+"', expecting e.g. /verses/gen/1/1"
-            except:
-                self.send_response(500)
-                data["message"] = "Internal error"
-                print("Error:", sys.exc_info()[0])
-
+            response = lookup_verse_from_ulb(book, chapter, verse_num)
+            if response["error"]:
+                self.send_response(404)
+                data["message"] = response["message"]
+            else:
+                data["verse"] = response["verse"]
+                self.send_response(200)
         else:
-
             # Not sure what client is looking for
             self.send_response(404)
             data["message"] = "Couldn't understand path '"+self.path+"', expecting e.g. /verses/gen/1/1"
@@ -66,7 +59,11 @@ class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(bytes(json.dumps(data), "utf8"))
 
-def lookup_verse(book, chapter, verse_num):
+def lookup_verse_from_ulb(book, chapter, verse_num):
+    response = {}
+    response["verse"] = ""
+    response["error"] = False
+    response["message"] = ""
     zf = zipfile.ZipFile('ulb.zip')
     filename_match_regex = re.compile(FILENAME_PREFIX_REGEX + book.upper() + FILENAME_SUFFIX_REGEX)
     filenames = zf.namelist()
@@ -75,12 +72,17 @@ def lookup_verse(book, chapter, verse_num):
         if match:
             usfm = zf.read(filename)
             return lookup_verse_from_usfm(usfm, chapter, verse_num)
-
     # Couldn't find match, return blank
-    return ""
+    response["error"] = True
+    response["message"] = "Couldn't find book named " + book
+    return response
 
 def lookup_verse_from_usfm(usfm, chapter, verse_num):
-    return "uh, yep!"
+    response = {}
+    response["verse"] = "OK" #FIXME
+    response["error"] = False
+    response["message"] = ""
+    return response
 
 
 if __name__ == "__main__":
