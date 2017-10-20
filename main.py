@@ -77,15 +77,15 @@ def lookup_verse_from_ulb(book, chapter, verse_num):
         match = filename_match_regex.match(filename)
         if match:
             # Found book, lookup chapter and verse
-            usfm = zf.read(filename)
-            return lookup_verse_from_usfm(usfm, chapter, verse_num)
+            with zf.open(filename) as usfm_stream:
+                return lookup_verse_from_usfm(usfm_stream, chapter, verse_num)
 
     # Couldn't find match, return blank
     response["error"] = True
     response["message"] = "Couldn't find book named " + book
     return response
 
-def lookup_verse_from_usfm(usfm, chapter, verse_num):
+def lookup_verse_from_usfm(usfm_stream, chapter, verse_num):
 
     # Prepare response
     response = {}
@@ -93,13 +93,26 @@ def lookup_verse_from_usfm(usfm, chapter, verse_num):
     response["error"] = False
     response["message"] = ""
 
+    # Prepare chapter and verse matchers
+    chapter_regex = re.compile(r"^\\c (\d+)$")
+    verse_regex = re.compile(r"^\\v "+verse_num+" (.*)$")
+
     # Look for chapter and verse
-    chapter_matches = False
-    for line in usfm:
-        print(line)
+    current_chapter = None
+    for line_bytes in usfm_stream:
+        line = line_bytes.decode("utf-8")
+        chapter_match = chapter_regex.match(line)
+        if chapter_match:
+            current_chapter = chapter_match.group(1)
+        if current_chapter == chapter:
+            verse_match = verse_regex.match(line)
+            if verse_match:
+                response["verse"] = verse_match.group(1)
+                return response
 
-
-    # Finished
+    # Not found
+    response["error"] = True
+    response["message"] = "Verse not found."
     return response
 
 
